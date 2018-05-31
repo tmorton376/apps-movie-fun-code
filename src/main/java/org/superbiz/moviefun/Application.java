@@ -8,9 +8,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 import org.superbiz.moviefun.blobstore.BlobStore;
 import org.superbiz.moviefun.blobstore.S3Store;
-import org.superbiz.moviefun.blobstore.ServiceCredentials;
 
 @SpringBootApplication
 public class Application {
@@ -24,24 +24,37 @@ public class Application {
         return new ServletRegistrationBean(actionServlet, "/moviefun/*");
     }
 
+    @Profile("cloud")
     @Bean
-    ServiceCredentials serviceCredentials(@Value("${vcap.services}") String vcapServices) {
-        return new ServiceCredentials(vcapServices);
+    public BlobStore cloudS3BlobStore(
+            @Value("${vcap.services.moviefun-s3-service.credentials.access_key_id}") String s3AccessKey,
+            @Value("${vcap.services.moviefun-s3-service.credentials.secret_access_key}") String s3SecretKey,
+            @Value("${vcap.services.moviefun-s3-service.credentials.bucket}") String s3BucketName,
+            @Value("${vcap.services.moviefun-s3-service.credentials.s3_endpointurl}") String s3EndpointUrl
+    ) {
+        return getS3BlobStore(s3AccessKey, s3SecretKey, s3BucketName, s3EndpointUrl);
     }
 
+    @Profile("!cloud")
     @Bean
-    public BlobStore blobStore(
-        ServiceCredentials serviceCredentials,
-        @Value("${s3.endpointUrl:#{null}}") String s3EndpointUrl
+    public BlobStore s3BlobStore(
+            @Value("${s3.access_key_id}") String s3AccessKey,
+            @Value("${s3.secret_access_key}") String s3SecretKey,
+            @Value("${s3.bucket}") String s3BucketName,
+            @Value("${s3.endpointurl}") String s3EndpointUrl
     ) {
-        String s3AccessKey = serviceCredentials.getCredential("moviefun-s3", "aws-s3", "access_key_id");
-        String s3SecretKey = serviceCredentials.getCredential("moviefun-s3", "aws-s3", "secret_access_key");
-        String s3BucketName = serviceCredentials.getCredential("moviefun-s3", "aws-s3", "bucket");
+        return getS3BlobStore(s3AccessKey, s3SecretKey, s3BucketName, s3EndpointUrl);
+    }
 
-        AWSCredentials credentials = new BasicAWSCredentials(s3AccessKey, s3SecretKey);
+    private BlobStore getS3BlobStore(String s3AccessKey,
+                                     String s3SecretKey,
+                                     String s3BucketName,
+                                     String s3EndpointUrl) {
+        AWSCredentials credentials = new BasicAWSCredentials(s3AccessKey,
+                                                        s3SecretKey);
         AmazonS3Client s3Client = new AmazonS3Client(credentials);
 
-        if (s3EndpointUrl != null) {
+        if (s3EndpointUrl != null && !s3EndpointUrl.equals("")) {
             s3Client.setEndpoint(s3EndpointUrl);
         }
 

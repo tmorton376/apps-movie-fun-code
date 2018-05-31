@@ -10,3 +10,10 @@ spring:
   mvc.view:
     prefix: /WEB-INF/
     suffix: .jsp
+
+# Example for configuring generic S3 store without cloud profile (i.e. Minio)
+#s3:
+#  access_key_id: {s3 access key}
+#  secret_access_key: {s3 access secret}
+#  bucket: movie-fun-bucket
+#  endpointurl: http://127.0.0.1:9000
